@@ -1,15 +1,16 @@
 package sudoku
 
 func nextEmptySquare(b *Board) (int, int) {
-	// xxx least count
+	minRow, minColumn, minCount := -1, -1, 10
 	for i := 0; i < numRows; i++ {
 		for j := 0; j < numColumns; j++ {
-			if len(b[i][j]) > 1 {
-				return i, j
+			possible := len(b[i][j])
+			if possible > 1 && possible < minCount {
+				minRow, minColumn, minCount = i, j, possible
 			}
 		}
 	}
-	return -1, -1
+	return minRow, minColumn
 }
 
 func Solver(b *Board) *Board {
