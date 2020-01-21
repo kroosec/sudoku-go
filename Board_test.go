@@ -53,14 +53,16 @@ func TestBoard(t *testing.T) {
 		}
 	})
 
-	t.Run("export board to string", func(t *testing.T) {
-		want := "..3.2.6..9..3.5..1..18.64....81.29..7.......8..67.82....26.95..8..2.3..9..5.1.3.."
+	t.Run("export board to string, duplicate produces the same", func(t *testing.T) {
+		want := "4.....8.5.3..........7......2.....6.....8.4......1.......6.3.7.5..2.....1.4......"
+
 		board, err := sudoku.NewBoard(want)
 		assertError(t, err, nil)
-		got := board.String()
-		if got != want {
-			t.Errorf("expected board string '%s', got '%s'", want, got)
-		}
+		assertBoardString(t, board.String(), want)
+
+		board = sudoku.DuplicateBoard(board)
+		assertBoardString(t, board.String(), want)
+
 	})
 
 	t.Run("New board from strings", func(t *testing.T) {
@@ -77,116 +79,101 @@ func TestBoard(t *testing.T) {
 		}
 		cases := []testCase{
 			{name: "Valid board #1",
-				boardString: "003020600 900305001 001806400 008102900 700000008 006708200 002609500 800203009 005010300",
+				boardString: "4.....8.5.3..........7......2.....6.....8.4......1.......6.3.7.5..2.....1.4......",
 				err:         nil,
 				squares: []testSquare{
-					{0, 0, 0},
+					{0, 0, 4},
 					{0, 1, 0},
-					{0, 2, 3},
+					{0, 2, 0},
 					{0, 3, 0},
-					{0, 4, 2},
+					{0, 4, 0},
 					{0, 5, 0},
-					{0, 6, 6},
+					{0, 6, 8},
 					{0, 7, 0},
-					{0, 8, 0},
+					{0, 8, 5},
 
-					{1, 0, 9},
-					{1, 1, 0},
+					{1, 0, 0},
+					{1, 1, 3},
 					{1, 2, 0},
-					{1, 3, 3},
+					{1, 3, 0},
 					{1, 4, 0},
-					{1, 5, 5},
+					{1, 5, 0},
 					{1, 6, 0},
 					{1, 7, 0},
-					{1, 8, 1},
+					{1, 8, 0},
 
 					{2, 0, 0},
 					{2, 1, 0},
-					{2, 2, 1},
-					{2, 3, 8},
+					{2, 2, 0},
+					{2, 3, 7},
 					{2, 4, 0},
-					{2, 5, 6},
-					{2, 6, 4},
+					{2, 5, 0},
+					{2, 6, 0},
 					{2, 7, 0},
 					{2, 8, 0},
 
 					{3, 0, 0},
-					{3, 1, 0},
-					{3, 2, 8},
-					{3, 3, 1},
+					{3, 1, 2},
+					{3, 2, 0},
+					{3, 3, 0},
 					{3, 4, 0},
-					{3, 5, 2},
-					{3, 6, 9},
-					{3, 7, 0},
+					{3, 5, 0},
+					{3, 6, 0},
+					{3, 7, 6},
 					{3, 8, 0},
 
-					{4, 0, 7},
+					{4, 0, 0},
 					{4, 1, 0},
 					{4, 2, 0},
 					{4, 3, 0},
-					{4, 4, 0},
+					{4, 4, 8},
 					{4, 5, 0},
-					{4, 6, 0},
+					{4, 6, 4},
 					{4, 7, 0},
-					{4, 8, 8},
+					{4, 8, 0},
 
 					{5, 0, 0},
 					{5, 1, 0},
-					{5, 2, 6},
-					{5, 3, 7},
-					{5, 4, 0},
-					{5, 5, 8},
-					{5, 6, 2},
+					{5, 2, 0},
+					{5, 3, 0},
+					{5, 4, 1},
+					{5, 5, 0},
+					{5, 6, 0},
 					{5, 7, 0},
 					{5, 8, 0},
 
 					{6, 0, 0},
 					{6, 1, 0},
-					{6, 2, 2},
+					{6, 2, 0},
 					{6, 3, 6},
 					{6, 4, 0},
-					{6, 5, 9},
-					{6, 6, 5},
-					{6, 7, 0},
+					{6, 5, 3},
+					{6, 6, 0},
+					{6, 7, 7},
 					{6, 8, 0},
 
-					{7, 0, 8},
+					{7, 0, 5},
 					{7, 1, 0},
 					{7, 2, 0},
 					{7, 3, 2},
 					{7, 4, 0},
-					{7, 5, 3},
+					{7, 5, 0},
 					{7, 6, 0},
 					{7, 7, 0},
-					{7, 8, 9},
+					{7, 8, 0},
 
-					{8, 0, 0},
+					{8, 0, 1},
 					{8, 1, 0},
-					{8, 2, 5},
+					{8, 2, 4},
 					{8, 3, 0},
-					{8, 4, 1},
+					{8, 4, 0},
 					{8, 5, 0},
-					{8, 6, 3},
+					{8, 6, 0},
 					{8, 7, 0},
 					{8, 8, 0},
 				},
 			},
 			{name: "Valid board #2",
-				boardString: "..3.2.6..9..3.5..1..18.64....81.29..7.......8..67.82....26.95..8..2.3..9..5.1.3..",
-				err:         nil,
-				squares: []testSquare{
-					{0, 6, 6},
-					{1, 8, 1},
-					{2, 3, 8},
-					{3, 8, 0},
-					{4, 8, 8},
-					{5, 6, 2},
-					{6, 8, 0},
-					{7, 8, 9},
-					{8, 6, 3},
-				},
-			},
-			{name: "Valid board #3",
 				boardString: `
 4 . . |. . . |8 . 5
 . 3 . |. . . |. . .
@@ -237,7 +224,7 @@ func TestBoard(t *testing.T) {
 				boardString: "33...............................................................................",
 				err:         sudoku.ErrDuplicateValue,
 			},
-			{name: "Invalid board #5: Same values in a box",
+			{name: "Invalid board #6: Same values in a box",
 				boardString: ".3.........3.....................................................................",
 				err:         sudoku.ErrDuplicateValue,
 			},
@@ -267,5 +254,12 @@ func assertSquareValue(t *testing.T, got, want int, board *sudoku.Board) {
 	t.Helper()
 	if got != want {
 		t.Fatalf("expected square value %d, got %d: %+v", want, got, board)
+	}
+}
+
+func assertBoardString(t *testing.T, got, want string) {
+	t.Helper()
+	if got != want {
+		t.Errorf("expected board string '%s', got '%s'", want, got)
 	}
 }

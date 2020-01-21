@@ -180,18 +180,25 @@ func assertProblem(t *testing.T, boardString string) {
 	t.Run(boardString, func(t *testing.T) {
 		board, err := sudoku.NewBoard(boardString)
 		assertError(t, err, nil)
-		got := sudoku.Solver(board)
-		if got == false {
+		solved := sudoku.Solver(board)
+		if solved == nil {
 			t.Fatalf("expected board to be solved, it wasn't")
 		}
 		for i := 0; i < 9; i++ {
 			for j := 0; j < 9; j++ {
-				value, err := board.GetValue(i, j)
+				value, err := solved.GetValue(i, j)
 				assertError(t, err, nil)
 				if value == sudoku.EmptySquare {
-					t.Fatalf("expected board to be solved, found an empty square, %+v", board)
+					t.Fatalf("expected board to be solved, found an empty square, %+v", solved)
 				}
 			}
 		}
+
+		// Can import solved board, ie. check for erroneous solutions.
+		_, err = sudoku.NewBoard(solved.String())
+		if err != nil {
+			t.Errorf("Can't import solved board %+v", solved)
+		}
+		assertError(t, err, nil)
 	})
 }
