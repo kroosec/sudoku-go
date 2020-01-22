@@ -7,14 +7,22 @@ import (
 )
 
 func TestBoard(t *testing.T) {
-	t.Run("get a square's value", func(t *testing.T) {
+	t.Run("get a square's value and possible values count", func(t *testing.T) {
 		board, err := sudoku.NewBoard("")
 		assertError(t, err, nil)
 
 		value, err := board.GetValue(0, 0)
 		assertError(t, err, nil)
 		assertSquareValue(t, value, sudoku.EmptySquare, board)
+
+		value, err = board.CountPossible(0, 0)
+		assertError(t, err, nil)
+		assertSquareValue(t, value, 9, board)
+
 		_, err = board.GetValue(0, -1)
+		assertError(t, err, sudoku.ErrInvalidPosition)
+
+		_, err = board.CountPossible(0, -1)
 		assertError(t, err, sudoku.ErrInvalidPosition)
 	})
 
@@ -40,6 +48,7 @@ func TestBoard(t *testing.T) {
 
 		board, err := sudoku.NewBoard("")
 		assertError(t, err, nil)
+
 		for _, c := range cases {
 			t.Run(c.name, func(t *testing.T) {
 				err := board.SetValue(c.row, c.column, c.value)
@@ -60,7 +69,7 @@ func TestBoard(t *testing.T) {
 		assertError(t, err, nil)
 		assertBoardString(t, board.String(), want)
 
-		board = sudoku.DuplicateBoard(board)
+		board = board.Duplicate()
 		assertBoardString(t, board.String(), want)
 
 	})
@@ -71,12 +80,14 @@ func TestBoard(t *testing.T) {
 			column int
 			value  int
 		}
+
 		type testCase struct {
 			name        string
 			boardString string
 			squares     []testSquare
 			err         error
 		}
+
 		cases := []testCase{
 			{name: "Valid board #1",
 				boardString: "4.....8.5.3..........7......2.....6.....8.4......1.......6.3.7.5..2.....1.4......",
@@ -200,9 +211,8 @@ func TestBoard(t *testing.T) {
 				},
 				err: nil,
 			},
-
 			{name: "Invalid board #1: Few values",
-				boardString: "1238577",
+				boardString: "1234567",
 				err:         sudoku.ErrInvalidBoardString,
 				squares:     nil,
 			},
@@ -229,10 +239,12 @@ func TestBoard(t *testing.T) {
 				err:         sudoku.ErrDuplicateValue,
 			},
 		}
+
 		for _, c := range cases {
 			t.Run(c.name, func(t *testing.T) {
 				board, err := sudoku.NewBoard(c.boardString)
 				assertError(t, err, c.err)
+
 				for _, square := range c.squares {
 					value, err := board.GetValue(square.row, square.column)
 					assertError(t, err, nil)
@@ -245,6 +257,7 @@ func TestBoard(t *testing.T) {
 
 func assertError(t *testing.T, got, want error) {
 	t.Helper()
+
 	if got != want {
 		t.Fatalf("expected error %v, got %v", want, got)
 	}
@@ -252,6 +265,7 @@ func assertError(t *testing.T, got, want error) {
 
 func assertSquareValue(t *testing.T, got, want int, board *sudoku.Board) {
 	t.Helper()
+
 	if got != want {
 		t.Fatalf("expected square value %d, got %d: %+v", want, got, board)
 	}
@@ -259,6 +273,7 @@ func assertSquareValue(t *testing.T, got, want int, board *sudoku.Board) {
 
 func assertBoardString(t *testing.T, got, want string) {
 	t.Helper()
+
 	if got != want {
 		t.Errorf("expected board string '%s', got '%s'", want, got)
 	}

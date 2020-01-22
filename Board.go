@@ -26,63 +26,73 @@ type Board [numRows][numColumns][]int
 
 func newEmptyBoard() *Board {
 	board := &Board{}
-	for i := 0; i < len(board); i++ {
-		for j := 0; j < len(board[i]); j++ {
+
+	for i := 0; i < numRows; i++ {
+		for j := 0; j < numColumns; j++ {
 			board[i][j] = make([]int, len(allValues))
 			copy(board[i][j], allValues)
 		}
 	}
+
 	return board
 }
 
-// NewBoard creates a sudoku grid from a string, filling empty squares that have only one possible value.
-func NewBoard(str string) (*Board, error) {
-	if str != "" && len(str) < numSquares {
-		return nil, ErrInvalidBoardString
-	}
-
-	board := newEmptyBoard()
+func (b *Board) insertValues(str string) error {
 	if str == "" {
-		return board, nil
+		return nil
 	}
 
 	numInserted := 0
 	for _, c := range str {
+		if isEmptyChar(c) {
+			numInserted++
+			continue
+		}
+
 		value := int(c - '0')
-		if !isValidValue(value) && !isEmptyChar(c) {
+		if !isValidValue(value) {
 			continue
 		}
 		if numInserted == numSquares {
-			return nil, ErrInvalidBoardString
+			return ErrInvalidBoardString
 		}
 
 		row := (numInserted / numColumns)
 		column := (numInserted % numColumns)
 
-		if !isEmptyChar(c) {
-			err := board.assign(row, column, value)
-			if err != nil {
-				return nil, err
-			}
+		err := b.assign(row, column, value)
+		if err != nil {
+			return err
 		}
 		numInserted++
 	}
 
 	if numInserted != numSquares {
-		return nil, ErrInvalidBoardString
+		return ErrInvalidBoardString
 	}
+	return nil
+}
+
+// NewBoard creates a sudoku grid from a string, filling empty squares that have only one possible value.
+func NewBoard(str string) (*Board, error) {
+	board := newEmptyBoard()
+
+	if err := board.insertValues(str); err != nil {
+		return nil, err
+	}
+
 	return board, nil
 }
 
-func DuplicateBoard(old *Board) *Board {
-	board := &Board{}
+func (b *Board) Duplicate() *Board {
+	newBoard := &Board{}
 	for i := 0; i < numRows; i++ {
 		for j := 0; j < numColumns; j++ {
-			board[i][j] = make([]int, len(old[i][j]))
-			copy(board[i][j], old[i][j])
+			newBoard[i][j] = make([]int, len(b[i][j]))
+			copy(newBoard[i][j], b[i][j])
 		}
 	}
-	return board
+	return newBoard
 }
 
 func (b *Board) eliminate(row, column int) bool {
@@ -98,7 +108,7 @@ func (b *Board) eliminate(row, column int) bool {
 }
 
 func (b *Board) assign(row, column, value int) error {
-	if !b.valuePossible(row, column, value) {
+	if !b.ValuePossible(row, column, value) {
 		return ErrDuplicateValue
 	}
 
@@ -119,6 +129,14 @@ func (b *Board) SetValue(row, column, value int) error {
 	return b.assign(row, column, value)
 }
 
+func (b *Board) CountPossible(row, column int) (int, error) {
+	if !isValidPosition(row, column) {
+		return 0, ErrInvalidPosition
+	}
+
+	return len(b[row][column]), nil
+}
+
 func (b *Board) eliminateInBox(row, column, value int) bool {
 	boxRow := (row / 3) * 3
 	boxColumn := (column / 3) * 3
@@ -128,21 +146,9 @@ func (b *Board) eliminateInBox(row, column, value int) bool {
 			if i == row && j == column {
 				continue
 			}
-			if len(b[i][j]) == 1 && b[i][j][0] == value {
-				if b[i][j][0] == value {
-					return false
-				}
-				continue
-			}
-			for k, val := range b[i][j] {
-				if val == value {
-					b[i][j][k] = b[i][j][len(b[i][j])-1]
-					b[i][j] = b[i][j][:len(b[i][j])-1]
-					if !b.eliminate(i, j) {
-						return false
-					}
-					break
-				}
+
+			if !b.eliminateSquare(i, j, value) {
+				return false
 			}
 		}
 	}
@@ -154,21 +160,8 @@ func (b *Board) eliminateInColumn(row, column, value int) bool {
 		if i == row {
 			continue
 		}
-		if len(b[i][column]) == 1 {
-			if b[i][column][0] == value {
-				return false
-			}
-			continue
-		}
-		for j, val := range b[i][column] {
-			if val == value {
-				b[i][column][j] = b[i][column][len(b[i][column])-1]
-				b[i][column] = b[i][column][:len(b[i][column])-1]
-				if !b.eliminate(i, column) {
-					return false
-				}
-				break
-			}
+		if !b.eliminateSquare(i, column, value) {
+			return false
 		}
 	}
 	return true
@@ -179,27 +172,31 @@ func (b *Board) eliminateInRow(row, column, value int) bool {
 		if i == column {
 			continue
 		}
-		if len(b[row][i]) == 1 {
-			if b[row][i][0] == value {
-				return false
-			}
-			continue
-		}
-		for j, val := range b[row][i] {
-			if val == value {
-				b[row][i][j] = b[row][i][len(b[row][i])-1]
-				b[row][i] = b[row][i][:len(b[row][i])-1]
-				if !b.eliminate(row, i) {
-					return false
-				}
-				break
-			}
+		if !b.eliminateSquare(row, i, value) {
+			return false
 		}
 	}
 	return true
 }
 
-func (b *Board) valuePossible(row, column int, value int) bool {
+func (b *Board) eliminateSquare(row, column, value int) bool {
+	values := b[row][column]
+
+	for i, val := range b[row][column] {
+		if val == value {
+			values[i] = values[len(values)-1]
+			b[row][column] = values[:len(values)-1]
+
+			if !b.eliminate(row, column) {
+				return false
+			}
+			break
+		}
+	}
+	return true
+}
+
+func (b *Board) ValuePossible(row, column int, value int) bool {
 	for _, val := range b[row][column] {
 		if val == value {
 			return true
@@ -212,6 +209,7 @@ func (b *Board) GetValue(row, column int) (int, error) {
 	if !isValidPosition(row, column) {
 		return -1, ErrInvalidPosition
 	}
+
 	if len(b[row][column]) > 1 {
 		return EmptySquare, nil
 	}
@@ -220,6 +218,7 @@ func (b *Board) GetValue(row, column int) (int, error) {
 
 func (b *Board) String() string {
 	var str strings.Builder
+
 	for i := 0; i < numRows; i++ {
 		for j := 0; j < numColumns; j++ {
 			if len(b[i][j]) > 1 {
