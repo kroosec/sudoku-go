@@ -22,7 +22,7 @@ func Solver(b *Board) *Board {
 	}
 	// try each value for this empty square
 	for value := 1; value <= 9; value++ {
-		if !b.ValuePossible(row, column, value) {
+		if !b.valuePossible(row, column, value) {
 			continue
 		}
 
