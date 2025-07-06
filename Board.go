@@ -1,3 +1,5 @@
+// Package sudoku provides functionality to solve Sudoku puzzles. It uses a
+// backtracking search algorithm combined with constraint propagation.
 package sudoku
 
 import (
@@ -8,27 +10,69 @@ import (
 const (
 	EmptySquare = 0
 
+	numDigits  = 9
 	numRows    = 9
 	numColumns = 9
 	numSquares = numRows * numColumns
 )
 
 var (
-	ErrInvalidBoardString = fmt.Errorf("Invalid board string")
-	ErrInvalidPosition    = fmt.Errorf("Invalid position")
-	ErrInvalidValue       = fmt.Errorf("Invalid value")
-	ErrDuplicateValue     = fmt.Errorf("Value already exists in unit")
+	ErrInvalidBoardString = fmt.Errorf("invalid board string")
+	ErrInvalidPosition    = fmt.Errorf("invalid position")
+	ErrInvalidValue       = fmt.Errorf("invalid value")
+	ErrDuplicateValue     = fmt.Errorf("value already exists in unit")
 
 	allValues = "123456789"
+
+	// peers is a map where the key is a square's coordinates (row, column),
+	// and the value is a slice of coordinates of its peers.
+	peers map[[2]int][][2]int
 )
+
+func init() {
+	peers = make(map[[2]int][][2]int)
+	for r := range numRows {
+		for c := range numColumns {
+			key := [2]int{r, c}
+			peerSet := make(map[[2]int]struct{})
+
+			// Row peers
+			for i := range numColumns {
+				peerSet[[2]int{r, i}] = struct{}{}
+			}
+
+			// Column peers
+			for i := range numRows {
+				peerSet[[2]int{i, c}] = struct{}{}
+			}
+
+			// Box peers
+			boxRowStart := (r / 3) * 3
+			boxColStart := (c / 3) * 3
+			for i := boxRowStart; i < boxRowStart+3; i++ {
+				for j := boxColStart; j < boxColStart+3; j++ {
+					peerSet[[2]int{i, j}] = struct{}{}
+				}
+			}
+
+			delete(peerSet, key)
+
+			peerList := make([][2]int, 0, len(peerSet))
+			for p := range peerSet {
+				peerList = append(peerList, p)
+			}
+			peers[key] = peerList
+		}
+	}
+}
 
 type Board [numRows][numColumns]string
 
 func newEmptyBoard() *Board {
 	board := &Board{}
 
-	for i := 0; i < numRows; i++ {
-		for j := 0; j < numColumns; j++ {
+	for i := range numRows {
+		for j := range numColumns {
 			board[i][j] = allValues
 		}
 	}
@@ -41,35 +85,49 @@ func (b *Board) insertValues(str string) error {
 		return nil
 	}
 
-	numInserted := 0
+	// Sanitize input string. Keep relevant characters only
+	var cleanStr strings.Builder
 	for _, c := range str {
+		if (c >= '1' && c <= '9') || c == '.' || c == '0' {
+			cleanStr.WriteRune(c)
+		}
+	}
+
+	if cleanStr.Len() != numSquares {
+		return ErrInvalidBoardString
+	}
+
+	for i, c := range cleanStr.String() {
 		if isEmptyChar(c) {
-			numInserted++
 			continue
 		}
 
 		value := int(c - '0')
-		if !isValidValue(value) {
-			continue
-		}
-		if numInserted == numSquares {
-			return ErrInvalidBoardString
-		}
+		row := i / numColumns
+		column := i % numColumns
 
-		row := (numInserted / numColumns)
-		column := (numInserted % numColumns)
-
-		err := b.assign(row, column, value)
-		if err != nil {
+		if err := b.assign(row, column, value); err != nil {
 			return err
 		}
-		numInserted++
-	}
-
-	if numInserted != numSquares {
-		return ErrInvalidBoardString
 	}
 	return nil
+}
+
+func (b *Board) eliminate(row, column int) bool {
+	switch len(b[row][column]) {
+	case 0:
+		// Contradiction: removed last value.
+		return false
+	case 1:
+		// If a square is reduced to one value, then eliminate it from its peers.
+		value := b[row][column][0]
+		for _, p := range peers[[2]int{row, column}] {
+			if !b.eliminateSquare(p[0], p[1], value) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // NewBoard creates a sudoku grid from a string, filling empty squares that have only one possible value.
@@ -85,24 +143,12 @@ func NewBoard(str string) (*Board, error) {
 
 func (b *Board) Duplicate() *Board {
 	newBoard := &Board{}
-	for i := 0; i < numRows; i++ {
-		for j := 0; j < numColumns; j++ {
+	for i := range numRows {
+		for j := range numColumns {
 			newBoard[i][j] = b[i][j]
 		}
 	}
 	return newBoard
-}
-
-func (b *Board) eliminate(row, column int) bool {
-	switch len(b[row][column]) {
-	case 1:
-		value := b[row][column][0]
-		return b.eliminateInRow(row, column, value) && b.eliminateInColumn(row, column, value) && b.eliminateInBox(row, column, value)
-	case 0:
-		return false
-	default:
-		return true
-	}
 }
 
 func (b *Board) assign(row, column, value int) error {
@@ -135,48 +181,6 @@ func (b *Board) CountPossible(row, column int) (int, error) {
 	return len(b[row][column]), nil
 }
 
-func (b *Board) eliminateInBox(row, column int, value byte) bool {
-	boxRow := (row / 3) * 3
-	boxColumn := (column / 3) * 3
-
-	for i := boxRow; i < boxRow+3; i++ {
-		for j := boxColumn; j < boxColumn+3; j++ {
-			if i == row && j == column {
-				continue
-			}
-
-			if !b.eliminateSquare(i, j, value) {
-				return false
-			}
-		}
-	}
-	return true
-}
-
-func (b *Board) eliminateInColumn(row, column int, value byte) bool {
-	for i := 0; i < numRows; i++ {
-		if i == row {
-			continue
-		}
-		if !b.eliminateSquare(i, column, value) {
-			return false
-		}
-	}
-	return true
-}
-
-func (b *Board) eliminateInRow(row, column int, value byte) bool {
-	for i := 0; i < numColumns; i++ {
-		if i == column {
-			continue
-		}
-		if !b.eliminateSquare(row, i, value) {
-			return false
-		}
-	}
-	return true
-}
-
 func (b *Board) eliminateSquare(row, column int, value byte) bool {
 	if strings.ContainsRune(b[row][column], rune(value)) {
 		b[row][column] = strings.ReplaceAll(b[row][column], string(value), "")
@@ -206,8 +210,8 @@ func (b *Board) GetValue(row, column int) (int, error) {
 func (b *Board) String() string {
 	var str strings.Builder
 
-	for i := 0; i < numRows; i++ {
-		for j := 0; j < numColumns; j++ {
+	for i := range numRows {
+		for j := range numColumns {
 			if len(b[i][j]) > 1 {
 				str.WriteByte('.')
 			} else {
@@ -230,5 +234,5 @@ func isValidPosition(row, column int) bool {
 }
 
 func isValidValue(value int) bool {
-	return value >= 1 && value <= 9
+	return value >= 1 && value <= numDigits
 }
