@@ -1,11 +1,11 @@
 package sudoku
 
 func nextEmptySquare(b *Board) (int, int) {
-	minRow, minColumn, minCount := -1, -1, 10
+	minRow, minColumn, minCount := -1, -1, numDigits+1
 
 	// Search for the empty square that has the least amount of possible values.
-	for i := 0; i < numRows; i++ {
-		for j := 0; j < numColumns; j++ {
+	for i := range numRows {
+		for j := range numColumns {
 			possible, _ := b.CountPossible(i, j)
 			if possible > 1 && possible < minCount {
 				minRow, minColumn, minCount = i, j, possible
@@ -18,22 +18,19 @@ func nextEmptySquare(b *Board) (int, int) {
 func Solver(b *Board) *Board {
 	row, column := nextEmptySquare(b)
 	if row == -1 || column == -1 {
-		return b.Duplicate()
+		return b
 	}
-	// try each value for this empty square
-	for value := 1; value <= 9; value++ {
-		if !b.valuePossible(row, column, value) {
-			continue
-		}
+	// Try each possible value for this square.
+	for _, c := range b[row][column] {
+		value := int(c - '0')
 
 		// Apply modifications to a duplicate board.
 		newBoard := b.Duplicate()
 		if err := newBoard.assign(row, column, value); err != nil {
-			// value present in unit
 			continue
 		}
 
-		// try solving the board with this value
+		// Try solving the board with this value.
 		if solved := Solver(newBoard); solved != nil {
 			return solved
 		}
