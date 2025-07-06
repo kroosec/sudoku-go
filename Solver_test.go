@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/kroosec/sudoku-go"
+	"github.com/stretchr/testify/assert"
 )
 
 // Easy problems.
@@ -178,25 +179,21 @@ func assertProblem(t *testing.T, boardString string) {
 
 	t.Run(boardString, func(t *testing.T) {
 		board, err := sudoku.NewBoard(boardString)
-		assertError(t, err, nil)
+		assert.NoError(t, err)
 
 		solved := sudoku.Solver(board)
-		if solved == nil {
-			t.Fatalf("expected board to be solved, it wasn't")
-		}
+		assert.NotNil(t, solved)
 
 		for i := range 9 {
 			for j := range 9 {
 				value, err := solved.GetValue(i, j)
-				assertError(t, err, nil)
-				if value == sudoku.EmptySquare {
-					t.Fatalf("expected board to be solved, found an empty square, %+v", solved)
-				}
+				assert.NoError(t, err)
+				assert.NotEqual(t, sudoku.EmptySquare, value)
 			}
 		}
 
 		// Can import solved board, ie. check for erroneous solutions.
 		_, err = sudoku.NewBoard(solved.String())
-		assertError(t, err, nil)
+		assert.NoError(t, err)
 	})
 }

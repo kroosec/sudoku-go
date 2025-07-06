@@ -4,26 +4,27 @@ import (
 	"testing"
 
 	"github.com/kroosec/sudoku-go"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestBoard(t *testing.T) {
 	t.Run("get a square's value and possible values count", func(t *testing.T) {
 		board, err := sudoku.NewBoard("")
-		assertError(t, err, nil)
+		assert.NoError(t, err)
 
 		value, err := board.GetValue(0, 0)
-		assertError(t, err, nil)
-		assertSquareValue(t, value, sudoku.EmptySquare, board)
+		assert.NoError(t, err)
+		assert.Equal(t, sudoku.EmptySquare, value)
 
 		value, err = board.CountPossible(0, 0)
-		assertError(t, err, nil)
-		assertSquareValue(t, value, 9, board)
+		assert.NoError(t, err)
+		assert.Equal(t, 9, value)
 
 		_, err = board.GetValue(0, -1)
-		assertError(t, err, sudoku.ErrInvalidPosition)
+		assert.ErrorIs(t, err, sudoku.ErrInvalidPosition)
 
 		_, err = board.CountPossible(0, -1)
-		assertError(t, err, sudoku.ErrInvalidPosition)
+		assert.ErrorIs(t, err, sudoku.ErrInvalidPosition)
 	})
 
 	t.Run("set value and verify that it was updated", func(t *testing.T) {
@@ -47,17 +48,17 @@ func TestBoard(t *testing.T) {
 		}
 
 		board, err := sudoku.NewBoard("")
-		assertError(t, err, nil)
+		assert.NoError(t, err)
 
 		for _, c := range cases {
 			t.Run(c.name, func(t *testing.T) {
 
 				err := board.SetValue(c.row, c.column, c.value)
-				assertError(t, err, c.err)
+				assert.ErrorIs(t, err, c.err)
 				if c.err == nil {
 					value, err := board.GetValue(c.row, c.column)
-					assertError(t, err, nil)
-					assertSquareValue(t, value, c.value, board)
+					assert.NoError(t, err)
+					assert.Equal(t, c.value, value)
 				}
 			})
 		}
@@ -67,11 +68,11 @@ func TestBoard(t *testing.T) {
 		want := "4.....8.5.3..........7......2.....6.....8.4......1.......6.3.7.5..2.....1.4......"
 
 		board, err := sudoku.NewBoard(want)
-		assertError(t, err, nil)
-		assertBoardString(t, board.String(), want)
+		assert.NoError(t, err)
+		assert.Equal(t, want, board.String())
 
 		board = board.Duplicate()
-		assertBoardString(t, board.String(), want)
+		assert.Equal(t, want, board.String())
 
 	})
 
@@ -162,38 +163,14 @@ func TestBoard(t *testing.T) {
 		for _, c := range cases {
 			t.Run(c.name, func(t *testing.T) {
 				board, err := sudoku.NewBoard(c.boardString)
-				assertError(t, err, c.err)
+				assert.ErrorIs(t, err, c.err)
 
 				for _, square := range c.squares {
 					value, err := board.GetValue(square.row, square.column)
-					assertError(t, err, nil)
-					assertSquareValue(t, value, square.value, board)
+					assert.NoError(t, err)
+					assert.Equal(t, square.value, value)
 				}
 			})
 		}
 	})
-}
-
-func assertError(t *testing.T, got, want error) {
-	t.Helper()
-
-	if got != want {
-		t.Fatalf("expected error %v, got %v", want, got)
-	}
-}
-
-func assertSquareValue(t *testing.T, got, want int, board *sudoku.Board) {
-	t.Helper()
-
-	if got != want {
-		t.Fatalf("expected square value %d, got %d: %+v", want, got, board)
-	}
-}
-
-func assertBoardString(t *testing.T, got, want string) {
-	t.Helper()
-
-	if got != want {
-		t.Errorf("expected board string '%s', got '%s'", want, got)
-	}
 }
